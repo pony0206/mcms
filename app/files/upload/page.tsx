@@ -11,10 +11,13 @@ import Input from '../../../components/Input';
 import Textarea from '../../../components/Textarea';
 import Select from '../../../components/Select';
 import { Project } from '@/lib/prisma';
+import FileUpload from '@/components/FileUpload';
+import Toast from '@/components/Toast';
 
 const FileUploadPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
+  const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +40,7 @@ const FileUploadPage: React.FC = () => {
     }
   };
 
+  // app/files/upload/page.tsx
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
@@ -46,11 +50,14 @@ const FileUploadPage: React.FC = () => {
       setIsUploading(false);
       return;
     }
-
+    
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append('name', name);
     formData.append('description', description);
     formData.append('isPublic', String(isPublic));
+    formData.append('contentType', selectedFile.type); // Add content type to form data
+
     if (selectedProject) {
       formData.append('projectId', String(selectedProject));
     }
@@ -65,7 +72,7 @@ const FileUploadPage: React.FC = () => {
       });
 
       if (response.ok) {
-        router.push('/files');
+        router.push('/files/all-files');
       } else {
         console.error('Error uploading file:', response.statusText);
       }
@@ -85,7 +92,7 @@ const FileUploadPage: React.FC = () => {
       });
 
       if (response.ok) {
-        const projects: Project[] = await response.json();
+        const projects: Project[] = await response.json() || [];
         return projects;
       } else {
         console.error('Error fetching projects:', response.statusText);
@@ -103,15 +110,23 @@ const FileUploadPage: React.FC = () => {
         <h1 className="text-3xl font-semibold mb-8 text-gray-800 dark:text-white">Upload File</h1>
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <Input
-              label='File'
-              name="file"
-              value={selectedFile?.name || ''}
-              type="file"
-              id="file"
-              onChange={handleFileChange}
-              required
-              className="w-full"
+            <FileUpload
+              onFileUpload={() => handleFileChange}
+              onFileSelect={(files: FileList | null) => {
+                if (files && files.length > 0) {
+                  setSelectedFile(files[0]);
+                }
+              }}
+            />
+          </div>
+          <div className="mb-6">
+            <label htmlFor="name" className="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+              Name
+            </label>
+            <Textarea
+              value={name}
+              onChange={setName}
+              rows={4}
             />
           </div>
           <div className="mb-6">
@@ -127,8 +142,8 @@ const FileUploadPage: React.FC = () => {
           <div className="mb-6">
             <Select
               label='Visibility'
-              value={isPublic.toString()}
-              onChange={(value) => setIsPublic(value === 'true')}
+              value={[isPublic.toString()]}
+              onChange={(value) => setIsPublic(value[0] === 'true')}
               options={[
                 { value: 'true', label: 'Public' },
                 { value: 'false', label: 'Private' },
@@ -138,8 +153,8 @@ const FileUploadPage: React.FC = () => {
           <div className="mb-6">
             <Select
               label='Project'
-              options={projects && projects.map(project => ({ value: project.id.toString(), label: project.name }))}
-              value={selectedProject !== null ? selectedProject : ''}
+              options={projects?.length > 0 && projects?.map(project => ({ value: project?.id.toString(), label: project?.name })) || ['']}
+              value={selectedProject && [selectedProject !== null] ? [selectedProject[0]] : ['']}
               onChange={(projectId: string | string[]) => {
                 if (typeof projectId === 'string') {
                   setSelectedProject(projectId);

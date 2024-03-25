@@ -1,9 +1,9 @@
 // app/api/posts/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { User } from '@/lib/prisma';
+import { activityListener } from '@/listeners/activityListener';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -22,8 +22,13 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             username: true,
+            avatar: true,
           },
         },
+        tags: true,
+        comments: true,
+        bookmarks: true,
+        settings: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -41,11 +46,25 @@ export async function POST(request: NextRequest) {
   const session = await getSession(request);
   const user = session?.user as User;
 
+  console.log(user)
+
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { title, content, tags } = await request.json();
+  if (!user || !user.id) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { id: user.id },
+  });
+
+  if (!existingUser) {
+    return NextResponse.json({ message: 'User not found' }, { status: 404 });
+  }
+
+  const { title, content, tags, settings } = await request.json();
 
   try {
     const newPost = await prisma.post.create({
@@ -63,9 +82,41 @@ export async function POST(request: NextRequest) {
             create: { name: tag },
           })),
         },
+        settings: settings
+          ? {
+              create: {
+                defaultVisibility: settings.defaultVisibility,
+                commentSettings: settings.commentSettings
+                  ? {
+                      create: {
+                        allowComments: settings.commentSettings.allowComments,
+                        moderateComments: settings.commentSettings.moderateComments,
+                      },
+                    }
+                  : undefined,
+                sharingSettings: settings.sharingSettings
+                  ? {
+                      create: {
+                        allowSharing: settings.sharingSettings.allowSharing,
+                        sharePlatforms: settings.sharingSettings.sharePlatforms,
+                      },
+                    }
+                  : undefined,
+                revisionHistorySettings: settings.revisionHistorySettings
+                  ? {
+                      create: {
+                        revisionsToKeep: settings.revisionHistorySettings.revisionsToKeep,
+                      },
+                    }
+                  : undefined,
+              },
+            }
+          : undefined,
       },
     });
 
+    console.log(newPost);
+    await activityListener('POST_CREATED', newPost.id, 'POST', newPost.authorId);
     return NextResponse.json(newPost, { status: 201 });
   } catch (error) {
     console.error('Error creating post:', error);

@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import Card from '@/components/Card';
-import Button from '@/components/Button';
-import Sidebar from '@/components/Sidebar';
+import Card from '@/components/base/Card';
+import Button from '@/components/base/Button';
+import Sidebar from '@/components/base/Sidebar';
 import AnalyticsPage from './analytics/page';
 import DashboardPage from './dashboard/page';
+import PostsPage from './posts/page';
 import PluginsPage from './plugins/page';
 import SettingsPage from './settings/page';
 import UsersPage from './users/page';
@@ -49,6 +50,7 @@ const AdminConfigurationPage: React.FC = () => {
         <Sidebar
           items={[
             { id: 'dashboard', label: 'Admin Dashboard' },
+            { id: 'posts', label: 'Posts' },
             { id: 'analytics', label: 'Analytics' },
             { id: 'plugins', label: 'Plugin Management' },
             { id: 'users', label: 'User Management' },
@@ -63,6 +65,7 @@ const AdminConfigurationPage: React.FC = () => {
           <Sidebar
             items={[
               { id: 'dashboard', label: 'Admin Dashboard' },
+              { id: 'posts', label: 'Posts' },
               { id: 'analytics', label: 'Analytics' },
               { id: 'plugins', label: 'Plugin Management' },
               { id: 'users', label: 'User Management' },
@@ -73,17 +76,21 @@ const AdminConfigurationPage: React.FC = () => {
           />
         </div>
         <div className="flex-1 p-8">
-          <Card className="dark:bg-gray-800 shadow-xl">
+          <Card className="dark:bg-gray-800 shadow-xl" effects={false} content={
+            <>
             {activeSubpage === 'dashboard' && <DashboardPage />}
+            {activeSubpage === 'posts' && <PostsPage />}
             {activeSubpage === 'analytics' && <AnalyticsPage />}
             {activeSubpage === 'plugins' && <PluginsPage />}
             {activeSubpage === 'users' && <UsersPage />}
             {activeSubpage === 'settings' && <SettingsPage />}
-          </Card>
+            </>
+          }
+          />
         </div>
       </div>
     </div>
-  )
+  );
 };
 
 export default AdminConfigurationPage;
